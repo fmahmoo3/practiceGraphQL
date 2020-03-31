@@ -1,7 +1,10 @@
 const { GraphQLServer } = require("graphql-yoga");
 const mongoose = require("mongoose");
 
-mongoose.connect("mongodb://localhost/test", { useNewUrlParser: true });
+mongoose.connect("mongodb://localhost/test", {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+});
 
 const User = mongoose.model("User", {
     firstName: String,
@@ -13,6 +16,7 @@ const User = mongoose.model("User", {
 const typeDefs = `
   type Query {
     hello(name: String): String!
+    users: [User]
   }
   type User {
     id: ID!
@@ -23,14 +27,19 @@ const typeDefs = `
   }
   type Mutation {
       createUser(fN: String!, lN: String!, eA: String!, p: String! ): User
+      updateUserName(id: ID!, fN: String!, lN: String!): Boolean
+      removeUser(id: ID!): Boolean
   }
 `;
 
 const resolvers = {
     Query: {
-        hello: (_, { name }) => `Hello ${name || "World"}`
+        hello: (_, { name }) => `Hello ${name || "World"}`,
+        users: () => User.find()
     },
     Mutation: {
+        // C(R)UD: Read [use query!]
+        // (C)RUD: Create
         createUser: async (_, { fN, lN, eA, p }) => {
             // 1. Create User instance
             const user = new User({
@@ -43,6 +52,16 @@ const resolvers = {
             await user.save();
             // 3. return User
             return user;
+        },
+        // CRU(D): Delete
+        removeUser: async (_, { id }) => {
+            await User.findByIdAndRemove(id);
+            return true;
+        },
+        // CR(U)D: Update
+        updateUserName: async (_, { id, fN, lN }) => {
+            await User.findByIdAndUpdate(id, { firstName: fN, lastName: lN });
+            return true;
         }
     }
 };
